@@ -1,0 +1,17 @@
+services:
+  dev:
+    build:
+      context: .
+      args:
+        USER_UID: ${UID:-1000}
+        USER_GID: ${GID:-1000}
+      user: "${UID:-1000}:${GID:-1000}"
+      volumes:
+        - ../.:/workspace
+      environment:
+        - HOME=/workspace
+      working_dir:
+        - /workspace
+      stdin_open: true
+      tty: true
+

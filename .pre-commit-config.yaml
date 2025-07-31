@@ -1,0 +1,19 @@
+repos:
+- repo: local
+  hooks:
+  - id: miniwdl-check
+    name: miniwdl check
+    language: system
+    files: ".+\\.wdl"
+    verbose: true
+    entry: miniwdl
+    args: [check]
+- repo: local
+  hooks:
+  - id: yamllint
+    name: yamllint
+    language: system
+    files: ".+\\.(yml|yaml)"
+    verbose: true
+    entry: yamllint
+    args: [-d, relaxed]
