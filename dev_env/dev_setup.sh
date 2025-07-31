@@ -6,10 +6,7 @@ set -euo pipefail
 # first things first, we should set up the env and install our linters and whatnot.
 uv venv
 source .venv/bin/activate
-uv pip install -r dev_deps.txt
-
-# now set it up as a git repo.
-git init
+uv pip install -r dev_env/dev_deps.txt
 
 # now install the pre-commit hooks
 pre-commit install

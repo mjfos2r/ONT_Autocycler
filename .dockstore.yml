@@ -1,5 +1,5 @@
 version: 1.2
 workflows:
-- name: WORKFLOW_NAME
+- name: ONT_Autocycler
   subclass: wdl
-  primaryDescriptorPath: /wdls/workflows/WORKFLOW_NAME.wdl
+  primaryDescriptorPath: /wdls/workflows/ONT_Autocycler.wdl
