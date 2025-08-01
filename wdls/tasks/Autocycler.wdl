@@ -14,7 +14,7 @@ workflow Autocycler {
         read_type: "available choices: ont_r9 ont_r10 pacbio_clr pacbio_hifi, default: ont_r10"
         min_depth_abs: "exclude contigs with read depth less than this absolute value. Default: 5"
         min_depth_rel: "exclude contigs with read depth less than this fraction of the longest contig's depth. Default: 0.1"
-        prefix: "prefix to output files"
+        prefix: "prefix to output files. Testing to see if dockstore is busted for me..."
     }
 
     input {
