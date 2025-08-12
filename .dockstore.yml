@@ -1,5 +1,12 @@
 version: 1.2
 workflows:
-- name: ONT_Autocycler
-  subclass: wdl
-  primaryDescriptorPath: /wdls/workflows/ONT_Autocycler.wdl
+  - name: ONT_Autocycler
+    subclass: wdl
+    primaryDescriptorPath: /wdls/workflows/ONT_Autocycler.wdl
+    latestTagAsDefault: 'true'
+    authors:
+      - name: "Michael J. Foster"
+    filters:
+      branches:
+        - 'main'
+        - 'dev'
