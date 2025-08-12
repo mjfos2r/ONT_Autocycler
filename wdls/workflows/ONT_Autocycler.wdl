@@ -64,12 +64,12 @@ workflow Autocycler {
     call ATC.ConsolidateLogs { input: logs = all_logs }
 
     output {
-        File assemblies = FinalizeAssembly.assemblies
-        File autocycler_out = FinalizeAssembly.autocycler_out
-        File consensus_assembly_fa = FinalizeAssembly.consensus_assembly_fa
-        File consensus_assembly_gfa = FinalizeAssembly.consensus_assembly_gfa
-        File contig_headers = FinalizeAssembly.contig_headers
-        Int num_contigs = FinalizeAssembly.num_contigs
-        File final_log = ConsolidateLogs.final_log
+        File atc_assemblies = FinalizeAssembly.assemblies
+        File atc_autocycler_out = FinalizeAssembly.autocycler_out
+        File atc_consensus_assembly_fa = FinalizeAssembly.consensus_assembly_fa
+        File atc_consensus_assembly_gfa = FinalizeAssembly.consensus_assembly_gfa
+        File atc_contig_headers = FinalizeAssembly.contig_headers
+        Int atc_num_contigs = FinalizeAssembly.num_contigs
+        File atc_final_log = ConsolidateLogs.final_log
     }
 }
