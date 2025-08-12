@@ -6,3 +6,7 @@ workflows:
     latestTagAsDefault: 'true'
     authors:
       - name: "Michael J. Foster"
+    filters:
+      branches:
+        - 'main'
+        - 'dev'
