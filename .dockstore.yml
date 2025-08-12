@@ -4,3 +4,5 @@ workflows:
     subclass: wdl
     primaryDescriptorPath: /wdls/workflows/ONT_Autocycler.wdl
     latestTagAsDefault: 'true'
+    authors:
+      - name: "Michael J. Foster"

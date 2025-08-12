@@ -1,69 +1,6 @@
 version 1.0
 import "../structs/Structs.wdl"
 
-workflow Autocycler {
-
-    meta {
-        description: "Description of the workflow"
-    }
-    parameter_meta {
-        input_reads: "reads input as fastq"
-        num_subsamples: "how many subsamples to generate from our reads? Default: 4"
-        min_read_depth_ss: "minimum read depth that will be allowed for subsampling. Default: 25"
-        assemblers: "which assemblers will we be using for this sample? default: [raven miniasm flye metamdbg necat nextdenovo plassembler canu]"
-        read_type: "available choices: ont_r9 ont_r10 pacbio_clr pacbio_hifi, default: ont_r10"
-        min_depth_abs: "exclude contigs with read depth less than this absolute value. Default: 5"
-        min_depth_rel: "exclude contigs with read depth less than this fraction of the longest contig's depth. Default: 0.1"
-        prefix: "prefix to output files. Testing to see if dockstore is busted for me..."
-    }
-
-    input {
-        File input_reads
-        Int num_subsamples = 4
-        Int min_read_depth_ss = 25
-        Array[String] assemblers = ["raven", "miniasm", "flye", "metamdbg", "necat", "nextdenovo", "plassembler", "canu"]
-        String read_type = "ont_r10"
-        Int min_depth_abs = 5
-        Float min_depth_rel = 0.1
-        String prefix
-    }
-
-    call Subsample {
-        input:
-            input_reads = input_reads,
-            subsample_count = num_subsamples,
-            min_read_depth = min_read_depth_ss
-    }
-
-    # okay we now have an Array[File] containing our subsampled reads. Let's get to scattergatherin.
-
-    scatter (subsample in Subsample.subsamples) {
-        scatter (tool in assemblers) {
-            call Assemble {
-                input:
-                    reads = subsample,
-                    assembler = tool,
-                    genome_size = Subsample.genome_size,
-                    read_type = read_type,
-                    min_depth_rel = min_depth_rel,
-                    min_depth_abs = min_depth_abs,
-                    #args = assembler_args[tool] # this isn't legal in WDL1.0 but it should be.
-            }
-        }
-    }
-    Array[File] gathered_assemblies = flatten(Assemble.assembler_output)
-
-    call ConsolidateAssemblies {
-        input:
-            tarballs = gathered_assemblies,
-    }
-
-
-    output {
-        File assemblies = ConsolidateAssemblies.assemblies
-    }
-}
-
 task Subsample {
     input {
         File input_reads
@@ -103,13 +40,13 @@ task Subsample {
             --out_dir subsamples \
             --genome_size "$genome_size" \
             --min_read_depth ~{min_read_depth} \
-            --count ~{subsample_count} 2>> autocycler_subsample.stderr
+            --count ~{subsample_count} 2>>autocycler.stderr
     >>>
 
     output {
         Int genome_size = read_int("est_genome_size.txt")
         Array[File] subsamples = glob("subsamples/sample_*.fastq")
-        File log = "autocycler_subsample.stderr"
+        File log = "autocycler.stderr"
     }
 
     #########################
@@ -118,7 +55,7 @@ task Subsample {
         mem_gb:             8,
         disk_gb:            disk_size,
         boot_disk_gb:       10,
-        preemptible_tries:  3,
+        preemptible_tries:  0,
         max_retries:        1,
         docker:             "mjfos2r/autocycler:latest"
     }
@@ -146,11 +83,12 @@ task Assemble {
         RuntimeAttr? runtime_attr_override
     }
 
-    Int disk_size = 100 + 3 * ceil(size(reads, "GB"))
+    Int disk_size = 365 + 3 * ceil(size(reads, "GB"))
 
     command <<<
         set -euo pipefail
         shopt -s nullglob
+
         NPROCS=$(cat /proc/cpuinfo | awk '/^processor/{print}' | wc -l)
 
         # make our output directory
@@ -172,15 +110,15 @@ task Assemble {
             --genome_size ~{genome_size} \
             --read_type ~{read_type} \
             --min_depth_rel ~{min_depth_rel} \
-            --min_depth_abs ~{min_depth_abs} "$ARGS" # this will probably fail.
+            --min_depth_abs ~{min_depth_abs} "$ARGS" 2>>autocycler.stderr# this will probably fail.
 
-        mkdir tarball
         # now to pack everything up
-        tar -czvf "tarball/~{assembler}_${sid}.tar.gz" assemblies
+        tar -czvf "~{assembler}_${sid}.tar.gz" assemblies
     >>>
 
     output {
-        File assembler_output = glob("tarball/*.tar.gz")[0]
+        File assembler_output = glob("*_*.tar.gz")[0]
+        File log = "autocycler.stderr"
     }
 
     #########################
@@ -189,7 +127,56 @@ task Assemble {
         mem_gb:             8,
         disk_gb:            disk_size,
         boot_disk_gb:       10,
-        preemptible_tries:  3,
+        preemptible_tries:  0,
+        max_retries:        1,
+        docker:             "mjfos2r/autocycler:latest"
+    }
+    RuntimeAttr runtime_attr = select_first([runtime_attr_override, default_attr])
+    runtime {
+        cpu:                    select_first([runtime_attr.cpu_cores,         default_attr.cpu_cores])
+        memory:                 select_first([runtime_attr.mem_gb,            default_attr.mem_gb]) + " GiB"
+        disks: "local-disk " +  select_first([runtime_attr.disk_gb,           default_attr.disk_gb]) + " SSD"
+        bootDiskSizeGb:         select_first([runtime_attr.boot_disk_gb,      default_attr.boot_disk_gb])
+        preemptible:            select_first([runtime_attr.preemptible_tries, default_attr.preemptible_tries])
+        maxRetries:             select_first([runtime_attr.max_retries,       default_attr.max_retries])
+        docker:                 select_first([runtime_attr.docker,            default_attr.docker])
+        timeoutMinutes: 360 # timeout after 6 hours... Shouldn't need this long but just in case.
+    }
+}
+
+task ConsolidateAssemblies {
+    input {
+        Array[File] tarballs
+        RuntimeAttr? runtime_attr_override
+    }
+
+    Int disk_size = 365 + 3 * ceil(size(tarballs, "GB"))
+
+    command <<<
+        set -euo pipefail
+        shopt -s nullglob
+
+        NPROCS=$(cat /proc/cpuinfo | awk '/^processor/{print}' | wc -l)
+
+        mkdir -p assemblies
+        for ball in ~{sep=' 'tarballs}; do
+            tar -xzvf "$ball" -C assemblies --strip-components=1
+        done
+
+        tar -zcvf assemblies.tar.gz assemblies/
+    >>>
+
+    output {
+        File assemblies = "assemblies.tar.gz"
+    }
+
+    #########################
+    RuntimeAttr default_attr = object {
+        cpu_cores:          2,
+        mem_gb:             8,
+        disk_gb:            disk_size,
+        boot_disk_gb:       10,
+        preemptible_tries:  0,
         max_retries:        1,
         docker:             "mjfos2r/autocycler:latest"
     }
@@ -204,29 +191,116 @@ task Assemble {
         docker:                 select_first([runtime_attr.docker,            default_attr.docker])
     }
 }
-task ConsolidateAssemblies {
+
+task FinalizeAssembly {
     input {
-        Array[File] tarballs
+        File assemblies_in
+
         RuntimeAttr? runtime_attr_override
     }
 
-    Int disk_size = 365 + 3 * ceil(size(tarballs, "GB"))
+    parameter_meta {
+        assemblies_in: "tarball of assemblies to finalize into a consensus assembly."
+    }
+
+    Int disk_size = 365 + 2 * ceil(size(assemblies_in, "GB"))
 
     command <<<
         set -euo pipefail
         shopt -s nullglob
-        NPROCS=$(cat /proc/cpuinfo | awk '/^processor/{print}' | wc -l)
 
-        mkdir -p assemblies
-        for ball in ~{sep=' 'tarballs}; do
-            tar -xzvf "$ball" -C assemblies --strip-components=1
+        # unpack the tarball
+        tar -xzv ~{assemblies_in}
+
+        # upweight plassembler circular contigs since it's adept at pulling them together
+        for asm in assemblies/plassembler*.fasta; do
+            sed -i 's/circular=True/circular=True Autocycler_cluster_weight=2/' "$asm"
         done
 
+        # give contigs from canu and flye assemblies extra weight too since these are good assemblers
+        for asm in assemblies/canu*.fasta assemblies/flye*.fasta; do
+            sed -i 's/^>.*$/& Autocycler_consensus_weight=2/' "$asm"
+        done
+
+        # Now we compress em into a single graph!
+        autocycler compress -i assemblies -a autocycler_out 2>>autocycler.stderr
+
+        # cluster em!
+        autocycler cluster -a autocycler_out
+
+        # trim each good cluster
+        for c in autocycler_out/clustering/qc_pass/cluster_*; do
+            autocycler trim -c "$c" 2>>autocycler.stderr
+            autocycler resolve -c "$c" 2>>autocycler.stderr
+        done
+
+        # combine everything into a consensus assembly!
+        autocycler combine -a autocycler_out -i autocycler_out/clustering/qc_pass/cluster_*/5_final.gfa 2>>autocycler.stderr
+
+        # lets also count our contigs and dump their names
+        cat autocycler_out/consensus_assembly.fa | grep '>' | tee contig_headers.txt | wc -l >contig_count.txt
+
+        # Now that we've got everything finished. Let's pack up the autocycler_out directory into a tarball
+        # and also provide the final assembly.fa and assembly.gfa as direct outputs.
+        tar -zcvf autocycler_out.tar.gz autocycler_out/
+        # and lets pack up the assemblies directory too since we'll need them for debugging.
         tar -zcvf assemblies.tar.gz assemblies/
     >>>
 
     output {
+        File consensus_assembly_fa = "autocycler_out/consensus_assembly.fa"
+        File consensus_assembly_gfa = "autocycler_out/consensus_assembly.gfa"
+        File autocycler_out = "autocycler_out.tar.gz"
         File assemblies = "assemblies.tar.gz"
+        File log = "autocycler.stderr"
+        File contig_headers = "contig_headers.txt"
+        Int num_contigs = read_int("contig_count.txt")
+    }
+
+    #########################
+    RuntimeAttr default_attr = object {
+        cpu_cores:          4,
+        mem_gb:             16,
+        disk_gb:            disk_size,
+        boot_disk_gb:       10,
+        preemptible_tries:  3,
+        max_retries:        1,
+        docker:             "mjfos2r/autocycler:latest"
+    }
+    RuntimeAttr runtime_attr = select_first([runtime_attr_override, default_attr])
+    runtime {
+        cpu:                    select_first([runtime_attr.cpu_cores,         default_attr.cpu_cores])
+        memory:                 select_first([runtime_attr.mem_gb,            default_attr.mem_gb]) + " GiB"
+        disks: "local-disk " +  select_first([runtime_attr.disk_gb,           default_attr.disk_gb]) + " SSD"
+        bootDiskSizeGb:         select_first([runtime_attr.boot_disk_gb,      default_attr.boot_disk_gb])
+        preemptible:            select_first([runtime_attr.preemptible_tries, default_attr.preemptible_tries])
+        maxRetries:             select_first([runtime_attr.max_retries,       default_attr.max_retries])
+        docker:                 select_first([runtime_attr.docker,            default_attr.docker])
+    }
+}
+
+task ConsolidateLogs {
+    input {
+        Array[File] logs
+
+        RuntimeAttr? runtime_attr_override
+    }
+
+    parameter_meta {
+        input_file: "array of logfiles generated throughout autocycler assembly. (autocycler.stderr"
+    }
+
+    Int disk_size = 365 + 2 * ceil(size(logs, "GB"))
+
+    command <<<
+        set -euo pipefail
+        shopt -s nullglob
+
+        cat ~{sep=' ' logs} > autocycler_full.stderr
+    >>>
+
+    output {
+        File final_log = "autocycler_full.stderr"
     }
 
     #########################
