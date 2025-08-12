@@ -282,12 +282,7 @@ task FinalizeAssembly {
 task ConsolidateLogs {
     input {
         Array[File] logs
-
         RuntimeAttr? runtime_attr_override
-    }
-
-    parameter_meta {
-        input_file: "array of logfiles generated throughout autocycler assembly. (autocycler.stderr"
     }
 
     Int disk_size = 365 + 2 * ceil(size(logs, "GB"))
