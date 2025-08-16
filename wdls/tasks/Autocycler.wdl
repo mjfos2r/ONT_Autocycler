@@ -6,6 +6,7 @@ task Subsample {
         File input_reads
         Int subsample_count
         Int min_read_depth
+        String? genomesize
 
 
         RuntimeAttr? runtime_attr_override
@@ -26,13 +27,17 @@ task Subsample {
 
         # make our output directory
         mkdir -p subsamples
-
-        # now let's estimate our genome size using autocycler's helper function
-        autocycler helper genome_size \
-            --threads "$NPROCS" \
-            --reads ~{input_reads} > est_genome_size.txt
-        # cool, we need this for everything else in this workflow. dump to a file.
-        genome_size="$(cat est_genome_size.txt)"
+        genomesize=~{genomesize}
+        if [[ -n "$genomesize" ]]; then
+            genome_size="$genomesize"
+        else
+            # now let's estimate our genome size using autocycler's helper function
+            autocycler helper genome_size \
+                --threads "$NPROCS" \
+                --reads ~{input_reads} > est_genome_size.txt
+            # cool, we need this for everything else in this workflow. dump to a file.
+            genome_size="$(cat est_genome_size.txt)"
+        fi
 
         # ok now we can get to subsampling!
         autocycler subsample \
@@ -124,7 +129,7 @@ task Assemble {
     #########################
     RuntimeAttr default_attr = object {
         cpu_cores:          16,
-        mem_gb:             64,
+        mem_gb:             96,
         disk_gb:            disk_size,
         boot_disk_gb:       10,
         preemptible_tries:  0,

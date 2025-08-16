@@ -15,6 +15,7 @@ workflow Autocycler {
         read_type: "available choices: ont_r9 ont_r10 pacbio_clr pacbio_hifi, default: ont_r10"
         min_depth_abs: "exclude contigs with read depth less than this absolute value. Default: 5"
         min_depth_rel: "exclude contigs with read depth less than this fraction of the longest contig's depth. Default: 0.1"
+        genome_size: "Estimated size of the genome. Pass this variable if subsample crashes due to OOM."
     }
 
     input {
@@ -25,13 +26,15 @@ workflow Autocycler {
         String read_type = "ont_r10"
         Int min_depth_abs = 5
         Float min_depth_rel = 0.1
+        String? genomesize
     }
 
     call ATC.Subsample {
         input:
             input_reads = input_reads,
             subsample_count = num_subsamples,
-            min_read_depth = min_read_depth_ss
+            min_read_depth = min_read_depth_ss,
+            genomesize = genomesize
     }
     # okay we now have an Array[File] containing our subsampled reads. Let's get to scattergatherin.
     scatter (subsample in Subsample.subsamples) {
