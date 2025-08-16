@@ -30,14 +30,15 @@ task Subsample {
         genomesize=~{genomesize}
         if [[ -n "$genomesize" ]]; then
             genome_size="$genomesize"
+            echo "$genome_size" > est_genome_size.txt
         else
             # now let's estimate our genome size using autocycler's helper function
             autocycler helper genome_size \
                 --threads "$NPROCS" \
                 --reads ~{input_reads} > est_genome_size.txt
+        fi
             # cool, we need this for everything else in this workflow. dump to a file.
             genome_size="$(cat est_genome_size.txt)"
-        fi
 
         # ok now we can get to subsampling!
         autocycler subsample \
@@ -49,7 +50,7 @@ task Subsample {
     >>>
 
     output {
-        Int genome_size = read_int("est_genome_size.txt")
+        Int genome_size = read_string("est_genome_size.txt")
         Array[File] subsamples = glob("subsamples/sample_*.fastq")
         File log = "autocycler.stderr"
     }
@@ -80,7 +81,7 @@ task Assemble {
     input {
         File reads
         String assembler
-        Int genome_size
+        String genome_size
         String read_type
         Float min_depth_rel
         Int min_depth_abs
