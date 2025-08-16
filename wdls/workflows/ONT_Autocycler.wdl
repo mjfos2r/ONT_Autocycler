@@ -34,7 +34,6 @@ workflow Autocycler {
             min_read_depth = min_read_depth_ss
     }
     # okay we now have an Array[File] containing our subsampled reads. Let's get to scattergatherin.
-
     scatter (subsample in Subsample.subsamples) {
         scatter (tool in assemblers) {
             call ATC.Assemble {
