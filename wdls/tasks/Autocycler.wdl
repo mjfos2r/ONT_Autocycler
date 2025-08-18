@@ -222,7 +222,7 @@ task FinalizeAssembly {
         shopt -s nullglob
 
         # unpack the tarball
-        tar -xzv ~{assemblies_in}
+        tar -xzvf "~{assemblies_in}"
 
         # upweight plassembler circular contigs since it's adept at pulling them together
         for asm in assemblies/plassembler*.fasta; do
