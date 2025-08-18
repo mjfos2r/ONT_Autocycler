@@ -100,30 +100,34 @@ task Assemble {
         # make our output directory
         mkdir -p assemblies
 
-        sid="$(basename ~{reads} | sed -E 's/.*_([0-9]+).fastq/\1/')"
+        sid="$(basename ~{reads} | sed -E 's/.*_([0-9]+)\.fastq/\1/')"
 
         if [[ "~{assembler}" == "plassembler" ]]; then
-            ARGS="--args --chromosome 900000"
+            echo "Plassembler execution detected. Setting plassembler specific arguments"
+            ARGS="--args --chromosome 900000 "
         else
             ARGS=""
         fi
-
+        echo "Using ~{assembler} on subsample ${sid}."
         # now let's estimate our genome size using autocycler's helper function
-        autocycler helper ~{assembler} \
-            --reads ~{reads} \
-            --out_prefix "assemblies/~{assembler}_${sid}" \
-            --threads "$NPROCS" \
-            --genome_size ~{genome_size} \
-            --read_type ~{read_type} \
-            --min_depth_rel ~{min_depth_rel} \
-            --min_depth_abs ~{min_depth_abs} "$ARGS" 2>>autocycler.stderr# this will probably fail.
+        echo "Beginning assembly using Autocycler helper."
+        (
+            autocycler helper ~{assembler} \
+                --reads ~{reads} \
+                --out_prefix "assemblies/~{assembler}_${sid}" \
+                --threads "$NPROCS" \
+                --genome_size ~{genome_size} \
+                --read_type ~{read_type} \
+                --min_depth_rel ~{min_depth_rel} \
+                --min_depth_abs ~{min_depth_abs} $ARGS
+        ) 2>>autocycler.stderr # this will probably fail.
 
         # now to pack everything up
         tar -czvf "~{assembler}_${sid}.tar.gz" assemblies
     >>>
 
     output {
-        File assembler_output = glob("*_*.tar.gz")[0]
+        File assembler_output = glob("*.tar.gz")[0]
         File log = "autocycler.stderr"
     }
 
