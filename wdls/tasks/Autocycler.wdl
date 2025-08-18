@@ -101,6 +101,9 @@ task Assemble {
         mkdir -p assemblies
 
         sid="$(basename ~{reads} | sed -E 's/.*_([0-9]+)\.fastq/\1/')"
+        echo "Using ~{assembler} on subsample ${sid}."
+        echo "Using reads: $(basename ~{reads})"
+        echo "Using genome_size: ~{genome_size}"
 
         if [[ "~{assembler}" == "plassembler" ]]; then
             echo "Plassembler execution detected. Setting plassembler specific arguments"
@@ -108,8 +111,7 @@ task Assemble {
         else
             ARGS=""
         fi
-        echo "Using ~{assembler} on subsample ${sid}."
-        # now let's estimate our genome size using autocycler's helper function
+        # now let's assemble our reads using autocycler helper.
         echo "Beginning assembly using Autocycler helper."
         (
             autocycler helper ~{assembler} \
@@ -123,11 +125,11 @@ task Assemble {
         ) 2>>autocycler.stderr # this will probably fail.
 
         # now to pack everything up
-        tar -czvf "~{assembler}_${sid}.tar.gz" assemblies
+        tar -czvf "assemblies.tar.gz" assemblies
     >>>
 
     output {
-        File assembler_output = glob("*.tar.gz")[0]
+        File assembler_output = "assemblies.tar.gz"
         File log = "autocycler.stderr"
     }
 
