@@ -226,41 +226,50 @@ task FinalizeAssembly {
 
         # upweight plassembler circular contigs since it's adept at pulling them together
         for asm in assemblies/plassembler*.fasta; do
+            echo "Upweighting plassembler contigs"
             sed -i 's/circular=True/circular=True Autocycler_cluster_weight=2/' "$asm"
         done
 
         # give contigs from canu and flye assemblies extra weight too since these are good assemblers
         for asm in assemblies/canu*.fasta assemblies/flye*.fasta; do
+            echo "Upweighting contigs from Canu and Flye"
             sed -i 's/^>.*$/& Autocycler_consensus_weight=2/' "$asm"
         done
-
+        echo "Compressing assemblies into a single graph."
         # Now we compress em into a single graph!
-        autocycler compress -i assemblies -a autocycler_out 2>>autocycler.stderr
+        (autocycler compress -i assemblies -a autocycler_out) 2>>autocycler.stderr
 
         # cluster em!
-        autocycler cluster -a autocycler_out
+        echo "Generating Clusters using autocycler cluster."
+        (autocycler cluster -a autocycler_out) 2>>autocycler.stderr
 
         # trim each good cluster
         for c in autocycler_out/clustering/qc_pass/cluster_*; do
-            autocycler trim -c "$c" 2>>autocycler.stderr
-            autocycler resolve -c "$c" 2>>autocycler.stderr
+            echo "Trimming cluster $(basename ${c})"
+            (autocycler trim -c "$c") 2>>autocycler.stderr
+            echo "Trimming resolving cluster $(basename ${c})"
+            (autocycler resolve -c "$c") 2>>autocycler.stderr
         done
 
         # combine everything into a consensus assembly!
-        autocycler combine -a autocycler_out -i autocycler_out/clustering/qc_pass/cluster_*/5_final.gfa 2>>autocycler.stderr
+        echo "Combining all QC passed clusters into a single consensus."
+        (autocycler combine -a autocycler_out -i autocycler_out/clustering/qc_pass/cluster_*/5_final.gfa) 2>>autocycler.stderr
 
         # lets also count our contigs and dump their names
-        cat autocycler_out/consensus_assembly.fa | grep '>' | tee contig_headers.txt | wc -l >contig_count.txt
+        echo "getting contig count"
+        cat autocycler_out/consensus_assembly.fasta | grep '>' | tee contig_headers.txt | wc -l >contig_count.txt
 
         # Now that we've got everything finished. Let's pack up the autocycler_out directory into a tarball
         # and also provide the final assembly.fa and assembly.gfa as direct outputs.
+        echo "compressing autocycler_out directory"
         tar -zcvf autocycler_out.tar.gz autocycler_out/
         # and lets pack up the assemblies directory too since we'll need them for debugging.
+        echo "compressing assemblies directory"
         tar -zcvf assemblies.tar.gz assemblies/
     >>>
 
     output {
-        File consensus_assembly_fa = "autocycler_out/consensus_assembly.fa"
+        File consensus_assembly_fa = "autocycler_out/consensus_assembly.fasta"
         File consensus_assembly_gfa = "autocycler_out/consensus_assembly.gfa"
         File autocycler_out = "autocycler_out.tar.gz"
         File assemblies = "assemblies.tar.gz"
