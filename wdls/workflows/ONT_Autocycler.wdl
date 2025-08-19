@@ -9,13 +9,22 @@ workflow Autocycler {
 
     parameter_meta {
         input_reads: "reads input as fastq"
+        # subsample
         num_subsamples: "how many subsamples to generate from our reads? Default: 4"
         min_read_depth_ss: "minimum read depth that will be allowed for subsampling. Default: 25"
+        genome_size: "Optional string specifying the estimated length of the genome in bp. Pass this variable if subsample crashes due to OOM."
+        # assemble
         assemblers: "which assemblers will we be using for this sample? default: [raven miniasm flye metamdbg necat nextdenovo plassembler canu]"
-        read_type: "available choices: ont_r9 ont_r10 pacbio_clr pacbio_hifi, default: ont_r10"
-        min_depth_abs: "exclude contigs with read depth less than this absolute value. Default: 5"
-        min_depth_rel: "exclude contigs with read depth less than this fraction of the longest contig's depth. Default: 0.1"
-        genome_size: "Estimated size of the genome. Pass this variable if subsample crashes due to OOM."
+        min_depth_abs: "exclude contigs with read depth less than this absolute value. [Default: 5]"
+        min_depth_rel: "exclude contigs with read depth less than this fraction of the longest contig's depth. [Default: 0.1]"
+        read_type: "Type of read to be assembled. [Default: 'ont_r10'] [Options: ont_r9, ont_r10, pacbio_clr, pacbio_hifi]"
+        # Finalization: compress, cluster, trim, resolve, combine
+        max_contigs: "integer specifying the maximum number of contigs allowed per assembly. [Default: 25]"
+        kmer_size: "integer specifying the kmer size for De Bruijn graph construction. [Default: 51]"
+        cutoff: "float specifying the cutoff distance threshold for hiearchical clustering. [Default: 0.2]"
+        min_identity: "float specifying the minimum alignment identity for trimming alignments [Default: 0.75]"
+        max_unitigs: "integer specifying the maximum number of unitigs used for overlap alignment, set to 0 to disable trimming. [Default: 5.0]"
+        mad: "float specifying the allowed variability in cluster length, measured in Median Absolute Deviations. Set to 0 to disable exclusion of length outliers. [Default: 5.0]"
     }
 
     input {
@@ -27,6 +36,12 @@ workflow Autocycler {
         Int min_depth_abs = 5
         Float min_depth_rel = 0.1
         String? genomesize
+        Int max_contigs
+        Int kmer_size
+        Float cutoff
+        Float min_identity
+        Int max_unitigs
+        Float mad
     }
 
     call ATC.Subsample {
@@ -45,8 +60,8 @@ workflow Autocycler {
                     assembler = tool,
                     genome_size = Subsample.genome_size,
                     read_type = read_type,
-                    min_depth_rel = min_depth_rel,
                     min_depth_abs = min_depth_abs,
+                    min_depth_rel = min_depth_rel,
             }
         }
     }
@@ -58,7 +73,16 @@ workflow Autocycler {
     call ATC.ConsolidateAssemblies { input: tarballs = gathered_assemblies }
 
     # upweight contigs, compress everything into a single graph, then cluster, trim the good clusters, and generate our consensus
-    call ATC.FinalizeAssembly { input: assemblies_in = ConsolidateAssemblies.assemblies }
+    call ATC.FinalizeAssembly {
+        input:
+            assemblies_in = ConsolidateAssemblies.assemblies,
+            max_contigs = max_contigs,
+            kmer_size = kmer_size,
+            cutoff = cutoff,
+            min_identity = min_identity,
+            max_unitigs = max_unitigs,
+            mad = mad,
+    }
 
     # first we make an Array[File] of every log we've generated so far. by adding the newest logs to our gathered assembly logs.
     Array[File] all_logs = flatten([ [Subsample.log], assembly_logs, [FinalizeAssembly.log] ])

@@ -2,20 +2,22 @@ version 1.0
 import "../structs/Structs.wdl"
 
 task Subsample {
+    meta {
+        description: "Task to generate sets of subsampled reads using 'autocycler subsample'."
+        author: "Michael J. Foster"
+    }
+    parameter_meta {
+        input_reads: "input reads to be subsampled"
+        subsample_count: "how many subsamples to create"
+        min_read_depth: "minimum allowed read depth."
+        genomesize: "Optional string detailing the genomesize used for assembly and subsampling. [Example:'1500000'] [Default: calculated using autocycler helper]"
+    }
     input {
         File input_reads
         Int subsample_count
         Int min_read_depth
         String? genomesize
-
-
         RuntimeAttr? runtime_attr_override
-    }
-
-    parameter_meta {
-        input_reads: "input reads to be subsampled"
-        subsample_count: "how many subsamples to create"
-        min_read_depth: "minimum allowed read depth."
     }
 
     Int disk_size = 365 + 3 * ceil(size(input_reads, "GB"))
@@ -24,33 +26,43 @@ task Subsample {
         set -euo pipefail
         shopt -s nullglob
         NPROCS=$(cat /proc/cpuinfo | awk '/^processor/{print}' | wc -l)
-
+        echo "Using ${NPROCS} for subsampling."
         # make our output directory
         mkdir -p subsamples
         genomesize=~{genomesize}
         if [[ -n "$genomesize" ]]; then
-            genome_size="$genomesize"
-            echo "$genome_size" > est_genome_size.txt
+            echo "$genomesize" > est_genome_size.txt
+            echo "Using provided genome size for subsampling."
         else
             # now let's estimate our genome size using autocycler's helper function
-            autocycler helper genome_size \
-                --threads "$NPROCS" \
-                --reads ~{input_reads} > est_genome_size.txt
+            echo "Determining genome_size using autocycler helper genome_size."
+            (
+                autocycler helper genome_size \
+                    --threads "$NPROCS" \
+                    --reads ~{input_reads} > est_genome_size.txt
+            ) 2>>autocycler.stderr
         fi
-            # cool, we need this for everything else in this workflow. dump to a file.
-            genome_size="$(cat est_genome_size.txt)"
 
+        # cool, we need this for everything else in this workflow. dump to a file.
+        genome_size="$(cat est_genome_size.txt)"
+        echo "Now generating subsamples using autocycler subsample."
+        echo "Number of Subsamples: ~{subsample_count}"
+        echo "Minimum read depth:   ~{min_read_depth}"
+        echo "genome_size:          $genome_size"
         # ok now we can get to subsampling!
-        autocycler subsample \
-            --reads ~{input_reads} \
-            --out_dir subsamples \
-            --genome_size "$genome_size" \
-            --min_read_depth ~{min_read_depth} \
-            --count ~{subsample_count} 2>>autocycler.stderr
+        (
+            autocycler subsample \
+                --reads ~{input_reads} \
+                --out_dir subsamples \
+                --genome_size "$genome_size" \
+                --min_read_depth ~{min_read_depth} \
+                --count ~{subsample_count}
+        ) 2>>autocycler.stderr
+        echo "Autocycler subsample finished!"
     >>>
 
     output {
-        Int genome_size = read_string("est_genome_size.txt")
+        String genome_size = read_string("est_genome_size.txt")
         Array[File] subsamples = glob("subsamples/sample_*.fastq")
         File log = "autocycler.stderr"
     }
@@ -78,14 +90,25 @@ task Subsample {
 }
 
 task Assemble {
+    meta {
+        description: "Task that executes 'autocycler helper {assembler}' on an input set of subsampled reads using the provided assembler."
+        author: "Michael J. Foster"
+    }
+    parameter_meta {
+        reads: "File containing the set of subsampled reads to be assembled."
+        assembler: "String containing the name of the assembler to use."
+        genome_size: "String containing the size of the genome."
+        read_type: "Type of read to be assembled.  [Options: ont_r9, ont_r10, pacbio_clr, pacbio_hifi]"
+        min_depth_abs: "exclude contigs with read depth less than this absolute value. [Default: 5]"
+        min_depth_rel: "exclude contigs with read depth less than this fraction of the longest contig's depth. [Default: 0.1]"
+    }
     input {
         File reads
         String assembler
-        String genome_size
+        Int genome_size
         String read_type
-        Float min_depth_rel
         Int min_depth_abs
-
+        Float min_depth_rel
         RuntimeAttr? runtime_attr_override
     }
 
@@ -123,7 +146,7 @@ task Assemble {
                 --min_depth_rel ~{min_depth_rel} \
                 --min_depth_abs ~{min_depth_abs} $ARGS
         ) 2>>autocycler.stderr # this will probably fail.
-
+        echo "Assembly complete! Compressing assemblies directory."
         # now to pack everything up
         tar -czvf "assemblies.tar.gz" assemblies
     >>>
@@ -157,6 +180,13 @@ task Assemble {
 }
 
 task ConsolidateAssemblies {
+    meta {
+        description: "Gather task to consolidate scattered assemblies generated for each assembler, for each subsampled reads set."
+        author: "Michael J. Foster"
+    }
+    parameter_meta {
+        tarballs: "Array[File] containing the compressed assemblies.tar.gz file for each assembly generated."
+    }
     input {
         Array[File] tarballs
         RuntimeAttr? runtime_attr_override
@@ -205,14 +235,32 @@ task ConsolidateAssemblies {
 }
 
 task FinalizeAssembly {
-    input {
-        File assemblies_in
-
-        RuntimeAttr? runtime_attr_override
+    meta {
+        description: "Task to finalize this assembly. Performs contig biasing for Flye, Canu, and Plassembler. Compresses all assemblies into a single graph, then generates clusters. Clusters passing QC are trimmed and resolved. Finally, all clusters are combined into a single consensus fasta and graph."
+        author: "Michael J. Foster"
     }
-
     parameter_meta {
         assemblies_in: "tarball of assemblies to finalize into a consensus assembly."
+        max_contigs: "integer specifying the maximum number of contigs allowed per assembly. [Default: 25]"
+        kmer_size: "integer specifying the kmer size for De Bruijn graph construction. [Default: 51]"
+        cutoff: "float specifying the cutoff distance threshold for hiearchical clustering. [Default: 0.2]"
+        min_identity: "float specifying the minimum alignment identity for trimming alignments [Default: 0.75]"
+        max_unitigs: "integer specifying the maximum number of unitigs used for overlap alignment, set to 0 to disable trimming. [Default: 5.0]"
+        mad: "float specifying the allowed variability in cluster length, measured in Median Absolute Deviations. Set to 0 to disable exclusion of length outliers. [Default: 5.0]"
+    }
+    input {
+        File assemblies_in
+        Int max_contigs = 25
+        Int kmer_size = 51
+        Float cutoff = 0.2
+        Float min_identity = 0.75
+        Int max_unitigs = 5000
+        Float mad = 5.0
+        #Array[Int]? manual_nodes # list of tree node numbers to manually define clusters.
+        ##  usage: ~{sep=',' manual_nodes}
+        ##    Could be useful in Bb assembly if I'm going to resolve plasmids after multiassembly before finalizing?
+        #Float? min_assemblies # do I need to implement this using some sort of arg construction based on input presence? it defaults to automatic determination.
+        RuntimeAttr? runtime_attr_override
     }
 
     Int disk_size = 365 + 2 * ceil(size(assemblies_in, "GB"))
@@ -220,6 +268,8 @@ task FinalizeAssembly {
     command <<<
         set -euo pipefail
         shopt -s nullglob
+
+        NPROCS=$(cat /proc/cpuinfo | awk '/^processor/{print}' | wc -l)
 
         # unpack the tarball
         tar -xzvf "~{assemblies_in}"
@@ -237,16 +287,16 @@ task FinalizeAssembly {
         done
         echo "Compressing assemblies into a single graph."
         # Now we compress em into a single graph!
-        (autocycler compress -i assemblies -a autocycler_out) 2>>autocycler.stderr
+        (autocycler compress -i assemblies -a autocycler_out --max_contigs ~{max_contigs} --kmer ~{kmer_size} --threads "$NPROCS") 2>>autocycler.stderr
 
         # cluster em!
         echo "Generating Clusters using autocycler cluster."
-        (autocycler cluster -a autocycler_out) 2>>autocycler.stderr
+        (autocycler cluster -a autocycler_out --cutoff ~{cutoff} --max_contigs ~{max_contigs}) 2>>autocycler.stderr
 
         # trim each good cluster
         for c in autocycler_out/clustering/qc_pass/cluster_*; do
             echo "Trimming cluster $(basename ${c})"
-            (autocycler trim -c "$c") 2>>autocycler.stderr
+            (autocycler trim -c "$c" --min_identity ~{min_identity} --max_unitigs ~{max_unitigs} --mad ~{mad} --threads "$NPROCS") 2>>autocycler.stderr
             echo "Trimming resolving cluster $(basename ${c})"
             (autocycler resolve -c "$c") 2>>autocycler.stderr
         done
@@ -301,6 +351,13 @@ task FinalizeAssembly {
 }
 
 task ConsolidateLogs {
+    meta {
+        description: "Task to consolidate all autocycler.stderr logs from each task into a single file."
+        author: "Michael J. Foster"
+    }
+    parameter_meta {
+        logs: "Array[File] of logfiles gathered from each executed autocycler task."
+    }
     input {
         Array[File] logs
         RuntimeAttr? runtime_attr_override
