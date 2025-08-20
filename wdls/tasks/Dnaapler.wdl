@@ -32,6 +32,7 @@ task Dnaapler {
         dnaapler chromosome \
         --threads "${NPROCS}" \
         --prefix ~{sample_id} \
+        --force \
         --output dnaapler_out \
         --input ~{draft_assembly}
     >>>
