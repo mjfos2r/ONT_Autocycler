@@ -6,3 +6,8 @@ workflows:
     latestTagAsDefault: 'true'
     authors:
       - orcid: "0000-0002-6006-0641"
+  - name: Dnaapler
+    subclass: wdl
+    primaryDescriptorPath: /wdls/tasks/Dnaapler.wdl
+    authors:
+      - orcid: "0000-0002-6006-0641"

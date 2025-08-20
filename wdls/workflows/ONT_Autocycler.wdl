@@ -1,5 +1,6 @@
 version 1.0
 import "../tasks/Autocycler.wdl" as ATC
+import "../tasks/Dnaapler.wdl" as DNAP
 
 workflow Autocycler {
     meta {
@@ -8,7 +9,8 @@ workflow Autocycler {
     }
 
     parameter_meta {
-        input_reads: "reads input as fastq"
+        sample_id: "sample id for this assembly."
+        input_reads: "reads input as fastq."
         # subsample
         num_subsamples: "how many subsamples to generate from our reads? Default: 4"
         min_read_depth_ss: "minimum read depth that will be allowed for subsampling. Default: 25"
@@ -28,6 +30,7 @@ workflow Autocycler {
     }
 
     input {
+        String sample_id
         File input_reads
         Int num_subsamples = 4
         Int min_read_depth_ss = 25
@@ -83,6 +86,11 @@ workflow Autocycler {
             max_unitigs = max_unitigs,
             mad = mad,
     }
+    call DNAP.Dnaapler {
+        input:
+            draft_assembly = FinalizeAssembly.consensus_assembly_fa,
+            sample_id = sample_id
+    }
 
     # first we make an Array[File] of every log we've generated so far. by adding the newest logs to our gathered assembly logs.
     Array[File] all_logs = flatten([ [Subsample.log], assembly_logs, [FinalizeAssembly.log] ])
@@ -93,6 +101,7 @@ workflow Autocycler {
         File atc_assemblies = FinalizeAssembly.assemblies
         File atc_autocycler_out = FinalizeAssembly.autocycler_out
         File atc_consensus_assembly_fa = FinalizeAssembly.consensus_assembly_fa
+        File atc_consensus_assembly_fa_reoriented = Dnaapler.assembly_reoriented
         File atc_consensus_assembly_gfa = FinalizeAssembly.consensus_assembly_gfa
         File atc_contig_headers = FinalizeAssembly.contig_headers
         Int atc_num_contigs = FinalizeAssembly.num_contigs
