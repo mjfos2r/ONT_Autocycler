@@ -46,7 +46,7 @@ task Subsample {
         else
             if (( reads_fs_bytes > max_fs_bytes )); then
                 echo "input is too large. determining proportion to subsample by."
-                prop=$(awk -v s="reads_fs_bytes" -v t="$max_fs_bytes" 'BEGIN { print t/s }')
+                prop=$(awk -v s="$reads_fs_bytes" -v t="$max_fs_bytes" 'BEGIN { print t/s }')
                 echo "$prop"
                 # clamp between 0.1 and 0.9
                 clamped=$(awk -v p="$prop" 'BEGIN { if (p < 0.1) p = 0.1; if (p > 0.9) p = 0.9; print p}')
