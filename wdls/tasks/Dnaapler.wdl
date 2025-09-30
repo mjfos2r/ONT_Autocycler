@@ -1,13 +1,14 @@
 version 1.0
 import "../structs/Structs.wdl"
 
-workflow ONT_FixBamHeaderRG {
+workflow ReorientContigs {
     meta { description: "Simple workflow to reorient bacterial assemblies using Dnaapler." }
     input {
         File draft_assembly
+        String? dnaapler_mode
         String sample_id
     }
-    call Dnaapler { input: draft_assembly = draft_assembly, sample_id = sample_id }
+    call Dnaapler { input: draft_assembly = draft_assembly, sample_id = sample_id, dnaapler_mode = dnaapler_mode}
     output { File assembly_reoriented = Dnaapler.assembly_reoriented }
 }
 
@@ -15,11 +16,13 @@ task Dnaapler {
     input {
         File draft_assembly
         String sample_id
+        String dnaapler_mode = "all"
         RuntimeAttr? runtime_attr_override
     }
     parameter_meta {
         draft_assembly: "fasta file containing the draft assembly to reorient"
         sample_id: "sample_id for the assembly being reordered."
+        mode: "mode to run dnaapler in [ Default: 'all' ]"
     }
     Int disk_size = 365 + 2 * ceil(size(draft_assembly, "GB"))
     command <<<
@@ -27,9 +30,9 @@ task Dnaapler {
         shopt -s nullglob
         NPROCS=$(cat /proc/cpuinfo | awk '/^processor/{print}' | wc -l)
 
-        mkdir -p dnaapler_out
+        #mkdir -p dnaapler_out # dnaapler makes this directory. no need to create it here.
 
-        dnaapler chromosome \
+        dnaapler ~{dnaapler_mode} \
         --threads "${NPROCS}" \
         --prefix ~{sample_id} \
         --force \

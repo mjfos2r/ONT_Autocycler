@@ -306,9 +306,10 @@ task FinalizeAssembly {
         (autocycler combine -a autocycler_out -i autocycler_out/clustering/qc_pass/cluster_*/5_final.gfa) 2>>autocycler.stderr
 
         # lets also count our contigs and dump their names
-        echo "getting contig count"
-        cat autocycler_out/consensus_assembly.fasta | grep '>' | tee contig_headers.txt | wc -l >contig_count.txt
-
+        echo "getting contig count and final assembly length"
+        read -r num_contigs asm_length < <(seqkit stats -T autocycler_out/consensus_assembly.fasta | tail -n1 | cut -f4,5)
+        echo "$num_contigs" > contig_count.txt
+        echo "$asm_length" > asm_length.txt
         # Now that we've got everything finished. Let's pack up the autocycler_out directory into a tarball
         # and also provide the final assembly.fa and assembly.gfa as direct outputs.
         echo "compressing autocycler_out directory"
@@ -326,6 +327,7 @@ task FinalizeAssembly {
         File log = "autocycler.stderr"
         File contig_headers = "contig_headers.txt"
         Int num_contigs = read_int("contig_count.txt")
+        Int asm_length = read_int("asm_length.txt")
     }
 
     #########################

@@ -89,7 +89,7 @@ workflow Autocycler {
     call DNAP.Dnaapler {
         input:
             draft_assembly = FinalizeAssembly.consensus_assembly_fa,
-            sample_id = sample_id
+            sample_id = sample_id,
     }
 
     # first we make an Array[File] of every log we've generated so far. by adding the newest logs to our gathered assembly logs.
@@ -105,6 +105,7 @@ workflow Autocycler {
         File atc_consensus_assembly_gfa = FinalizeAssembly.consensus_assembly_gfa
         File atc_contig_headers = FinalizeAssembly.contig_headers
         Int atc_num_contigs = FinalizeAssembly.num_contigs
+        Int atc_asm_length = FinalizeAssembly.asm_length
         File atc_final_log = ConsolidateLogs.final_log
     }
 }
