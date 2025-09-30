@@ -17,6 +17,7 @@ task Subsample {
         Int subsample_count
         Int min_read_depth
         String? genomesize
+        Int max_fs_gb = 4
         RuntimeAttr? runtime_attr_override
     }
 
@@ -34,7 +35,7 @@ task Subsample {
         # and go from there.
 
         reads_fs_bytes=$(stat -c%s ~{input_reads})
-        max_fs_gb=8 # we're gonna try with 8. It requires roughly 9x input_fs GB in ram.
+        max_fs_gb=~{max_fs_gb} # we're gonna try with 8. It requires roughly 9x input_fs GB in ram.
         max_fs_bytes=$((max_fs_gb * 1024 * 1024 * 1024))
 
         # make our output directory
