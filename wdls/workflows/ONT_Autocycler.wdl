@@ -103,7 +103,6 @@ workflow Autocycler {
         File atc_consensus_assembly_fa = FinalizeAssembly.consensus_assembly_fa
         File atc_consensus_assembly_fa_reoriented = Dnaapler.assembly_reoriented
         File atc_consensus_assembly_gfa = FinalizeAssembly.consensus_assembly_gfa
-        File atc_contig_headers = FinalizeAssembly.contig_headers
         Int atc_num_contigs = FinalizeAssembly.num_contigs
         Int atc_asm_length = FinalizeAssembly.asm_length
         File atc_final_log = ConsolidateLogs.final_log
