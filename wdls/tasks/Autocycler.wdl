@@ -27,6 +27,16 @@ task Subsample {
         shopt -s nullglob
         NPROCS=$(cat /proc/cpuinfo | awk '/^processor/{print}' | wc -l)
         echo "Using ${NPROCS} for subsampling."
+        # set up handling to prevent OOM for large read sets. For some reason the
+        # documented estimation for memory usage in raven is incorrect.
+        # it is using far more than 1.2 * size + 16GB.
+        # So we're just gonna estimate genome_size based on a subsample of half of our reads
+        # and go from there.
+
+        reads_fs_bytes=$(stat -c%s ~{input_reads})
+        max_fs_gb=8 # we're gonna try with 8. It requires roughly 9x input_fs GB in ram.
+        max_fs_bytes=$((max_fs_gb * 1024 * 1024 * 1024))
+
         # make our output directory
         mkdir -p subsamples
         genomesize=~{genomesize}
@@ -34,13 +44,31 @@ task Subsample {
             echo "$genomesize" > est_genome_size.txt
             echo "Using provided genome size for subsampling."
         else
-            # now let's estimate our genome size using autocycler's helper function
-            echo "Determining genome_size using autocycler helper genome_size."
-            (
-                autocycler helper genome_size \
-                    --threads "$NPROCS" \
-                    --reads ~{input_reads} > est_genome_size.txt
-            ) 2>>autocycler.stderr
+            if (( reads_fs_bytes > max_fs_bytes )); then
+                echo "input is too large. determining proportion to subsample by."
+                prop=$(awk -v s="reads_fs_bytes" -v t="$max_fs_bytes" 'BEGIN { print t/s }')
+                echo "$prop"
+                # clamp between 0.1 and 0.9
+                clamped=$(awk -v p="$prop" 'BEGIN { if (p < 0.1) p = 0.1; if (p > 0.9) p = 0.9; print p}')
+                echo "$clamped"
+                echo "subsampling input reads by ${clamped} and using to determine genome_size, please stand by..."
+                seqkit sample --threads 14 -p "$clamped" -s 318 ~{input_reads} -o subsampled_input.fastq
+                # now let's estimate our genome size using autocycler's helper function
+                echo "Determining genome_size of subsampled input using autocycler helper genome_size."
+                (
+                    autocycler helper genome_size \
+                        --threads "$((NPROCS - 2))" \
+                        --reads subsampled_input.fastq > est_genome_size.txt
+                ) 2>>autocycler.stderr
+            else
+                # now let's estimate our genome size using autocycler's helper function
+                echo "Determining genome_size using autocycler helper genome_size."
+                (
+                    autocycler helper genome_size \
+                        --threads "$((NPROCS - 2))" \
+                        --reads ~{input_reads} > est_genome_size.txt
+                ) 2>>autocycler.stderr
+            fi
         fi
 
         # cool, we need this for everything else in this workflow. dump to a file.
@@ -72,7 +100,7 @@ task Subsample {
         cpu_cores:          16,
         mem_gb:             96,
         disk_gb:            disk_size,
-        boot_disk_gb:       10,
+        boot_disk_gb:       50,
         preemptible_tries:  0,
         max_retries:        1,
         docker:             "mjfos2r/autocycler:latest"
@@ -81,7 +109,7 @@ task Subsample {
     runtime {
         cpu:                    select_first([runtime_attr.cpu_cores,         default_attr.cpu_cores])
         memory:                 select_first([runtime_attr.mem_gb,            default_attr.mem_gb]) + " GiB"
-        disks: "local-disk " +  select_first([runtime_attr.disk_gb,           default_attr.disk_gb]) + " HDD"
+        disks: "local-disk " +  select_first([runtime_attr.disk_gb,           default_attr.disk_gb]) + " SSD"
         bootDiskSizeGb:         select_first([runtime_attr.boot_disk_gb,      default_attr.boot_disk_gb])
         preemptible:            select_first([runtime_attr.preemptible_tries, default_attr.preemptible_tries])
         maxRetries:             select_first([runtime_attr.max_retries,       default_attr.max_retries])

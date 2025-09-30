@@ -21,11 +21,11 @@ workflow Autocycler {
         min_depth_rel: "exclude contigs with read depth less than this fraction of the longest contig's depth. [Default: 0.1]"
         read_type: "Type of read to be assembled. [Default: 'ont_r10'] [Options: ont_r9, ont_r10, pacbio_clr, pacbio_hifi]"
         # Finalization: compress, cluster, trim, resolve, combine
-        max_contigs: "integer specifying the maximum number of contigs allowed per assembly. [Default: 25]"
+        max_contigs: "integer specifying the maximum number of contigs allowed per assembly. [Default: 30]"
         kmer_size: "integer specifying the kmer size for De Bruijn graph construction. [Default: 51]"
         cutoff: "float specifying the cutoff distance threshold for hiearchical clustering. [Default: 0.2]"
         min_identity: "float specifying the minimum alignment identity for trimming alignments [Default: 0.75]"
-        max_unitigs: "integer specifying the maximum number of unitigs used for overlap alignment, set to 0 to disable trimming. [Default: 5.0]"
+        max_unitigs: "integer specifying the maximum number of unitigs used for overlap alignment, set to 0 to disable trimming. [Default: 5000]"
         mad: "float specifying the allowed variability in cluster length, measured in Median Absolute Deviations. Set to 0 to disable exclusion of length outliers. [Default: 5.0]"
     }
 
@@ -39,12 +39,12 @@ workflow Autocycler {
         Int min_depth_abs = 5
         Float min_depth_rel = 0.1
         String? genomesize
-        Int max_contigs
-        Int kmer_size
-        Float cutoff
-        Float min_identity
-        Int max_unitigs
-        Float mad
+        Int max_contigs = 30
+        Int kmer_size = 51
+        Float cutoff = 0.2
+        Float min_identity = 0.75
+        Int max_unitigs = 5000
+        Float mad = 5.0
     }
 
     call ATC.Subsample {
