@@ -353,7 +353,6 @@ task FinalizeAssembly {
         File autocycler_out = "autocycler_out.tar.gz"
         File assemblies = "assemblies.tar.gz"
         File log = "autocycler.stderr"
-        File contig_headers = "contig_headers.txt"
         Int num_contigs = read_int("contig_count.txt")
         Int asm_length = read_int("asm_length.txt")
     }
