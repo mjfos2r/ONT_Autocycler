@@ -22,7 +22,7 @@ task Dnaapler {
     parameter_meta {
         draft_assembly: "fasta file containing the draft assembly to reorient"
         sample_id: "sample_id for the assembly being reordered."
-        mode: "mode to run dnaapler in [ Default: 'all' ]"
+        dnaapler_mode: "mode to run dnaapler in [ Default: 'all' ]"
     }
     Int disk_size = 365 + 2 * ceil(size(draft_assembly, "GB"))
     command <<<
