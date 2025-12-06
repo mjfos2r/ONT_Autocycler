@@ -16,7 +16,7 @@ workflow Autocycler {
         min_read_depth_ss: "minimum read depth that will be allowed for subsampling. Default: 25"
         genome_size: "Optional string specifying the estimated length of the genome in bp. Pass this variable if subsample crashes due to OOM."
         # assemble
-        assemblers: "which assemblers will we be using for this sample? default: [raven miniasm flye metamdbg necat nextdenovo plassembler canu]"
+        assemblers: "which assemblers will we be using for this sample? default: [raven miniasm flye metamdbg necat nextdenovo]"
         min_depth_abs: "exclude contigs with read depth less than this absolute value. [Default: 5]"
         min_depth_rel: "exclude contigs with read depth less than this fraction of the longest contig's depth. [Default: 0.1]"
         read_type: "Type of read to be assembled. [Default: 'ont_r10'] [Options: ont_r9, ont_r10, pacbio_clr, pacbio_hifi]"
@@ -34,7 +34,7 @@ workflow Autocycler {
         File input_reads
         Int num_subsamples = 4
         Int min_read_depth_ss = 25
-        Array[String] assemblers = ["raven", "miniasm", "flye", "metamdbg", "necat", "nextdenovo", "plassembler", "canu"]
+        Array[String] assemblers = ["raven", "miniasm", "flye", "metamdbg", "necat", "nextdenovo"]#, "plassembler", "canu"] plassembler is busted because of conda and canu takes WAY too long
         String read_type = "ont_r10"
         Int min_depth_abs = 5
         Float min_depth_rel = 0.1
@@ -99,6 +99,7 @@ workflow Autocycler {
 
     output {
         File atc_assemblies = FinalizeAssembly.assemblies
+        Array[File] atc_assemblies_arr = FinalizeAssembly.assemblies_arr
         File atc_autocycler_out = FinalizeAssembly.autocycler_out
         File atc_consensus_assembly_fa = FinalizeAssembly.consensus_assembly_fa
         File atc_consensus_assembly_fa_reoriented = Dnaapler.assembly_reoriented

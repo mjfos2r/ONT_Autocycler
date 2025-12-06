@@ -102,7 +102,7 @@ task Subsample {
         mem_gb:             96,
         disk_gb:            disk_size,
         boot_disk_gb:       50,
-        preemptible_tries:  0,
+        preemptible_tries:  3,
         max_retries:        1,
         docker:             "mjfos2r/autocycler:latest"
     }
@@ -191,7 +191,7 @@ task Assemble {
         mem_gb:             64,
         disk_gb:            disk_size,
         boot_disk_gb:       10,
-        preemptible_tries:  0,
+        preemptible_tries:  3,
         max_retries:        1,
         docker:             "mjfos2r/autocycler:latest"
     }
@@ -239,6 +239,7 @@ task ConsolidateAssemblies {
 
     output {
         File assemblies = "assemblies.tar.gz"
+        #Array[File] assemblies_arr = glob("assemblies/*.fasta")
     }
 
     #########################
@@ -247,7 +248,7 @@ task ConsolidateAssemblies {
         mem_gb:             64,
         disk_gb:            disk_size,
         boot_disk_gb:       10,
-        preemptible_tries:  0,
+        preemptible_tries:  3,
         max_retries:        1,
         docker:             "mjfos2r/autocycler:latest"
     }
@@ -349,6 +350,7 @@ task FinalizeAssembly {
     >>>
 
     output {
+        Array[File] assemblies_arr = glob("assemblies/*.fasta")
         File consensus_assembly_fa = "autocycler_out/consensus_assembly.fasta"
         File consensus_assembly_gfa = "autocycler_out/consensus_assembly.gfa"
         File autocycler_out = "autocycler_out.tar.gz"
