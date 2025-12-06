@@ -1,6 +1,7 @@
 version 1.0
 import "../tasks/Autocycler.wdl" as ATC
 import "../tasks/Dnaapler.wdl" as DNAP
+import "../tasks/BandageNG.wdl" as BNG
 
 workflow Autocycler {
     meta {
@@ -92,6 +93,12 @@ workflow Autocycler {
             sample_id = sample_id,
     }
 
+    call BNG.DrawGFA {
+        input:
+            gfa = FinalizeAssembly.consensus_assembly_gfa,
+            assembly_id = sample_id + "_ATC"
+    }
+
     # first we make an Array[File] of every log we've generated so far. by adding the newest logs to our gathered assembly logs.
     Array[File] all_logs = flatten([ [Subsample.log], assembly_logs, [FinalizeAssembly.log] ])
     # now we consolidate our logs into a single final log
@@ -104,6 +111,7 @@ workflow Autocycler {
         File atc_consensus_assembly_fa = FinalizeAssembly.consensus_assembly_fa
         File atc_consensus_assembly_fa_reoriented = Dnaapler.assembly_reoriented
         File atc_consensus_assembly_gfa = FinalizeAssembly.consensus_assembly_gfa
+        File atc_consensus_assembly_gfa_svg = DrawGFA.image
         Int atc_num_contigs = FinalizeAssembly.num_contigs
         Int atc_asm_length = FinalizeAssembly.asm_length
         File atc_final_log = ConsolidateLogs.final_log
