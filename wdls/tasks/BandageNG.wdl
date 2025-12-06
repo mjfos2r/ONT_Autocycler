@@ -51,7 +51,7 @@ task DrawGFA {
     >>>
 
     output {
-        File image = "~{assembly_id}_assembly_graph_~{ext}"
+        File image = "~{assembly_id}_assembly_graph~{ext}"
     }
 
     #########################
