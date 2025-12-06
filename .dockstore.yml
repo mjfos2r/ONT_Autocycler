@@ -11,3 +11,8 @@ workflows:
     primaryDescriptorPath: /wdls/tasks/Dnaapler.wdl
     authors:
       - orcid: "0000-0002-6006-0641"
+  - name: BandageNG
+    subclass: wdl
+    primaryDescriptorPath: /wdls/workflows/BandageNG.wdl
+    authors:
+      - orcid: "0000-0002-6006-0641"
