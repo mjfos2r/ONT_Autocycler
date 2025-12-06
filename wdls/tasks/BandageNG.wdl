@@ -46,7 +46,8 @@ task DrawGFA {
             --centre \
             --lengths \
             --depth \
-            ~{gfa} > "~{assembly_id}_assembly_graph."
+            ~{gfa} \
+            "~{assembly_id}_assembly_graph."
     >>>
 
     output {
