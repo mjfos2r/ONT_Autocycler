@@ -44,8 +44,8 @@ task Dnaapler {
     }
     #########################
     RuntimeAttr default_attr = object {
-        cpu_cores:          16,
-        mem_gb:             64,
+        cpu_cores:          4,
+        mem_gb:             16,
         disk_gb:            disk_size,
         boot_disk_gb:       10,
         preemptible_tries:  3,

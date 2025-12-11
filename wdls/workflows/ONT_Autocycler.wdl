@@ -87,6 +87,8 @@ workflow Autocycler {
             max_unitigs = max_unitigs,
             mad = mad,
     }
+    # TODO: filter out the low depth nodes and force resolution as best we can automatically.
+    # Need to write a separate workflow for tuning this ?
     call DNAP.Dnaapler {
         input:
             draft_assembly = FinalizeAssembly.consensus_assembly_fa,
