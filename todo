@@ -1,4 +1,7 @@
 Project Status:
-- [/] TODO: FIGURE OUT STATUS AND WHAT NEEDS FIXING
+- [/] TODO: FIGURE OUT STATUS AND WHAT NEEDS FIXING, this is mostly UTD.
 - [ ] TODO: Fix cases where reads are too sparse to benefit from subsampling. AKA the single subsample case. (in situations where reads < 1M, do not subsample, treat input reads as entire subsample?)
 - [x] TODO: fix dnaapler command from 'chromosome' to 'all' to accomodate multifasta input.
+- [x] TODO: add low depth filtering task
+- [x] TODO: add manual graph cleaning workflow.
+

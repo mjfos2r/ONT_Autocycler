@@ -429,3 +429,94 @@ task ConsolidateLogs {
         docker:                 select_first([runtime_attr.docker,            default_attr.docker])
     }
 }
+
+task CleanAssembly {
+    meta {
+        description: "Task to clean a consensus assembly by removing low-depth tigs using 'autocycler clean'. Useful for removing noise from assemblies with unresolved linear sequences."
+        author: "Michael J. Foster"
+    }
+    parameter_meta {
+        consensus_gfa: "GFA file from autocycler combine to be cleaned."
+        sample_id: "Sample identifier for output naming."
+        min_depth: "Automatically remove tigs up to this depth. [Default: 5]"
+        remove_tigs: "Optional comma-separated list of tig numbers to manually remove."
+        duplicate_tigs: "Optional comma-separated list of tig numbers to duplicate (for TIRs)."
+    }
+    input {
+        File consensus_gfa
+        String sample_id
+        Int min_depth = 5
+        String? remove_tigs
+        String? duplicate_tigs
+        RuntimeAttr? runtime_attr_override
+    }
+
+    Int disk_size = 10 + 2 * ceil(size(consensus_gfa, "GB"))
+
+    command <<<
+        set -euo pipefail
+        shopt -s nullglob
+
+        # Build optional arguments
+        ARGS=""
+        if [[ -n "~{min_depth}" && "~{min_depth}" -gt 0 ]]; then
+            ARGS="$ARGS --min_depth ~{min_depth}"
+        fi
+        if [[ -n "~{remove_tigs}" ]]; then
+            ARGS="$ARGS --remove ~{remove_tigs}"
+        fi
+        if [[ -n "~{duplicate_tigs}" ]]; then
+            ARGS="$ARGS --duplicate ~{duplicate_tigs}"
+        fi
+
+        echo "Cleaning assembly with autocycler clean."
+        echo "Arguments: $ARGS"
+        (
+            autocycler clean \
+                --in_gfa ~{consensus_gfa} \
+                --out_gfa ~{sample_id}_cleaned.gfa \
+                $ARGS
+        ) 2>>autocycler.stderr
+
+        echo "Converting cleaned GFA to FASTA."
+        (
+            autocycler gfa2fasta \
+                --in_gfa ~{sample_id}_cleaned.gfa \
+                --out_fasta ~{sample_id}_cleaned.fasta
+        ) 2>>autocycler.stderr
+
+        echo "Getting contig count and assembly length."
+        read -r num_contigs asm_length < <(seqkit stats -T ~{sample_id}_cleaned.fasta | tail -n1 | cut -f4,5)
+        echo "$num_contigs" > contig_count.txt
+        echo "$asm_length" > asm_length.txt
+    >>>
+
+    output {
+        File cleaned_gfa = "~{sample_id}_cleaned.gfa"
+        File cleaned_fasta = "~{sample_id}_cleaned.fasta"
+        File log = "autocycler.stderr"
+        Int num_contigs = read_int("contig_count.txt")
+        Int asm_length = read_int("asm_length.txt")
+    }
+
+    #########################
+    RuntimeAttr default_attr = object {
+        cpu_cores:          2,
+        mem_gb:             8,
+        disk_gb:            disk_size,
+        boot_disk_gb:       10,
+        preemptible_tries:  3,
+        max_retries:        1,
+        docker:             "mjfos2r/autocycler:latest"
+    }
+    RuntimeAttr runtime_attr = select_first([runtime_attr_override, default_attr])
+    runtime {
+        cpu:                    select_first([runtime_attr.cpu_cores,         default_attr.cpu_cores])
+        memory:                 select_first([runtime_attr.mem_gb,            default_attr.mem_gb]) + " GiB"
+        disks: "local-disk " +  select_first([runtime_attr.disk_gb,           default_attr.disk_gb]) + " HDD"
+        bootDiskSizeGb:         select_first([runtime_attr.boot_disk_gb,      default_attr.boot_disk_gb])
+        preemptible:            select_first([runtime_attr.preemptible_tries, default_attr.preemptible_tries])
+        maxRetries:             select_first([runtime_attr.max_retries,       default_attr.max_retries])
+        docker:                 select_first([runtime_attr.docker,            default_attr.docker])
+    }
+}

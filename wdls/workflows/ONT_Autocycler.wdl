@@ -87,22 +87,28 @@ workflow Autocycler {
             max_unitigs = max_unitigs,
             mad = mad,
     }
+    call ATC.CleanAssembly {
+        input:
+            consensus_gfa = FinalizeAssembly.consensus_assembly_gfa,
+            sample_id = sample_id,
+            min_depth = 1,
+    }
     # TODO: filter out the low depth nodes and force resolution as best we can automatically.
     # Need to write a separate workflow for tuning this ?
     call DNAP.Dnaapler {
         input:
-            draft_assembly = FinalizeAssembly.consensus_assembly_fa,
+            draft_assembly = CleanAssembly.cleaned_fasta,
             sample_id = sample_id,
     }
 
     call BNG.DrawGFA {
         input:
-            gfa = FinalizeAssembly.consensus_assembly_gfa,
+            gfa = CleanAssembly.cleaned_gfa,
             assembly_id = sample_id + "_ATC"
     }
 
     # first we make an Array[File] of every log we've generated so far. by adding the newest logs to our gathered assembly logs.
-    Array[File] all_logs = flatten([ [Subsample.log], assembly_logs, [FinalizeAssembly.log] ])
+    Array[File] all_logs = flatten([ [Subsample.log], assembly_logs, [FinalizeAssembly.log], [CleanAssembly.log] ])
     # now we consolidate our logs into a single final log
     call ATC.ConsolidateLogs { input: logs = all_logs }
 
@@ -111,11 +117,13 @@ workflow Autocycler {
         Array[File] atc_assemblies_arr = FinalizeAssembly.assemblies_arr
         File atc_autocycler_out = FinalizeAssembly.autocycler_out
         File atc_consensus_assembly_fa = FinalizeAssembly.consensus_assembly_fa
-        File atc_consensus_assembly_fa_reoriented = Dnaapler.assembly_reoriented
         File atc_consensus_assembly_gfa = FinalizeAssembly.consensus_assembly_gfa
-        File atc_consensus_assembly_gfa_svg = DrawGFA.image
-        Int atc_num_contigs = FinalizeAssembly.num_contigs
-        Int atc_asm_length = FinalizeAssembly.asm_length
+        File atc_cleaned_assembly_fa = CleanAssembly.cleaned_fasta
+        File atc_cleaned_assembly_gfa = CleanAssembly.cleaned_gfa
+        File atc_cleaned_assembly_fa_reoriented = Dnaapler.assembly_reoriented
+        File atc_cleaned_assembly_gfa_svg = DrawGFA.image
+        Int atc_num_contigs = CleanAssembly.num_contigs
+        Int atc_asm_length = CleanAssembly.asm_length
         File atc_final_log = ConsolidateLogs.final_log
     }
 }

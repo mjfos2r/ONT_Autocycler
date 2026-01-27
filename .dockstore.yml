@@ -16,3 +16,9 @@ workflows:
     primaryDescriptorPath: /wdls/workflows/BandageNG.wdl
     authors:
       - orcid: "0000-0002-6006-0641"
+  - name: ONT_AutocyclerClean
+    subclass: wdl
+    primaryDescriptorPath: /wdls/workflows/ONT_AutocyclerClean.wdl
+    latestTagAsDefault: 'true'
+    authors:
+      - orcid: "0000-0002-6006-0641"
