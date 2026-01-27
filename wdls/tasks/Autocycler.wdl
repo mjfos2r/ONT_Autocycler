@@ -491,6 +491,7 @@ task CleanAssembly {
         asm_length=$(tail -n1 seqkit_stats.txt | cut -f5)
         echo "$num_contigs" > contig_count.txt
         echo "$asm_length" > asm_length.txt
+        cat autocycler.stderr
     >>>
 
     output {
@@ -503,8 +504,8 @@ task CleanAssembly {
 
     #########################
     RuntimeAttr default_attr = object {
-        cpu_cores:          2,
-        mem_gb:             8,
+        cpu_cores:          4,
+        mem_gb:             16,
         disk_gb:            disk_size,
         boot_disk_gb:       10,
         preemptible_tries:  3,
