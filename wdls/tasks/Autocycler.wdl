@@ -510,7 +510,7 @@ task CleanAssembly {
         boot_disk_gb:       10,
         preemptible_tries:  3,
         max_retries:        1,
-        docker:             "mjfos2r/autocycler:latest"
+        docker:             "mjfos2r/autocycler@sha256:5e1b10a0662d8c7790c248bdcf40aeb1ebd84d863119b37d6069066763dd0655"
     }
     RuntimeAttr runtime_attr = select_first([runtime_attr_override, default_attr])
     runtime {
