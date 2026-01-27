@@ -486,7 +486,9 @@ task CleanAssembly {
         ) 2>>autocycler.stderr
 
         echo "Getting contig count and assembly length."
-        read -r num_contigs asm_length < <(seqkit stats -T ~{sample_id}_cleaned.fasta | tail -n1 | cut -f4,5)
+        seqkit stats -T ~{sample_id}_cleaned.fasta > seqkit_stats.txt
+        num_contigs=$(tail -n1 seqkit_stats.txt | cut -f4)
+        asm_length=$(tail -n1 seqkit_stats.txt | cut -f5)
         echo "$num_contigs" > contig_count.txt
         echo "$asm_length" > asm_length.txt
     >>>
