@@ -454,7 +454,7 @@ task CleanAssembly {
     Int disk_size = 10 + 2 * ceil(size(consensus_gfa, "GB"))
 
     command <<<
-        set -euo pipefail
+        set -uo pipefail
         shopt -s nullglob
 
         # Build optional arguments
