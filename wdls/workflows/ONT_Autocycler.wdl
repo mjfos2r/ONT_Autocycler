@@ -96,8 +96,6 @@ workflow Autocycler {
             sample_id = sample_id,
             min_depth = 1,
     }
-    # TODO: filter out the low depth nodes and force resolution as best we can automatically.
-    # Need to write a separate workflow for tuning this ?
     call DNAP.Dnaapler {
         input:
             draft_assembly = CleanAssembly.cleaned_fasta,

@@ -524,3 +524,107 @@ task CleanAssembly {
         docker:                 select_first([runtime_attr.docker,            default_attr.docker])
     }
 }
+task CleanGFA {
+    meta {
+        description: "Task to clean a consensus assembly by filtering depth, splitting telomeres, removing/duplicating nodes, and filtering by length."
+        author: "Michael J. Foster"
+    }
+    parameter_meta {
+        consensus_gfa: "GFA file from autocycler combine to be cleaned."
+        sample_id: "Sample identifier for output naming."
+        max_depth: "Remove nodes with depth above this threshold. [Default: none]"
+        min_depth: "Minimum depth threshold passed to autocycler clean -m. [Default: 2]"
+        remove_tigs: "Optional comma-separated list of tig numbers to remove."
+        duplicate_tigs: "Optional comma-separated list of tig numbers to duplicate (for TIRs)."
+        telos_to_split: "Optional comma-separated list of telomere nodes to split at center."
+        min_length: "Minimum contig length for final FASTA output. [Default: 2500]"
+    }
+    input {
+        File consensus_gfa
+        String sample_id
+        Float? max_depth
+        Int min_depth = 2
+        String? remove_tigs
+        String? duplicate_tigs
+        String? telos_to_split
+        Int min_length = 2500
+        RuntimeAttr? runtime_attr_override
+    }
+
+    Int disk_size = 10 + 2 * ceil(size(consensus_gfa, "GB"))
+
+    command <<<
+        set -euo pipefail
+
+        # Build arguments
+        ARGS=""
+
+        if [[ -n "~{max_depth}" ]]; then
+            ARGS="$ARGS --max_depth ~{max_depth}"
+        fi
+
+        if [[ "~{min_depth}" -gt 0 ]]; then
+            ARGS="$ARGS --min_depth ~{min_depth}"
+        fi
+
+        if [[ -n "~{remove_tigs}" ]]; then
+            ARGS="$ARGS --remove ~{remove_tigs}"
+        fi
+
+        if [[ -n "~{duplicate_tigs}" ]]; then
+            ARGS="$ARGS --duplicate ~{duplicate_tigs}"
+        fi
+
+        if [[ -n "~{telos_to_split}" ]]; then
+            ARGS="$ARGS --split_telos ~{telos_to_split}"
+        fi
+
+        if [[ "~{min_length}" -gt 0 ]]; then
+            ARGS="$ARGS --min_length ~{min_length}"
+        fi
+
+        echo "Running clean_gfa.py with args: $ARGS"
+        clean_gfa.py \
+            ~{consensus_gfa} \
+            ~{sample_id}_final \
+            $ARGS
+
+        # Get final stats
+        echo "Getting contig count and assembly length."
+        seqkit stats -T ~{sample_id}_cleaned.fasta > seqkit_stats.txt
+        cat seqkit_stats.txt
+        num_contigs=$(tail -n1 seqkit_stats.txt | cut -f4)
+        asm_length=$(tail -n1 seqkit_stats.txt | cut -f5)
+        echo "$num_contigs" > contig_count.txt
+        echo "$asm_length" > asm_length.txt
+    >>>
+
+    output {
+        File final_gfa = "~{sample_id}_cleaned.gfa"
+        File final_fasta = "~{sample_id}_cleaned.fasta"
+        File final_log = "~{sample_id}_cleaned.log"
+        Int final_num_contigs = read_int("contig_count.txt")
+        Int final_asm_length = read_int("asm_length.txt")
+    }
+
+    #########################
+    RuntimeAttr default_attr = object {
+        cpu_cores:          2,
+        mem_gb:             8,
+        disk_gb:            disk_size,
+        boot_disk_gb:       10,
+        preemptible_tries:  3,
+        max_retries:        1,
+        docker:             "mjfos2r/atc_clean_gfa:latest"
+    }
+    RuntimeAttr runtime_attr = select_first([runtime_attr_override, default_attr])
+    runtime {
+        cpu:                    select_first([runtime_attr.cpu_cores,         default_attr.cpu_cores])
+        memory:                 select_first([runtime_attr.mem_gb,            default_attr.mem_gb]) + " GiB"
+        disks: "local-disk " +  select_first([runtime_attr.disk_gb,           default_attr.disk_gb]) + " HDD"
+        bootDiskSizeGb:         select_first([runtime_attr.boot_disk_gb,      default_attr.boot_disk_gb])
+        preemptible:            select_first([runtime_attr.preemptible_tries, default_attr.preemptible_tries])
+        maxRetries:             select_first([runtime_attr.max_retries,       default_attr.max_retries])
+        docker:                 select_first([runtime_attr.docker,            default_attr.docker])
+    }
+}
