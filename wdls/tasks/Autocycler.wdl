@@ -591,7 +591,7 @@ task CleanGFA {
 
         # Get final stats
         echo "Getting contig count and assembly length."
-        seqkit stats -T ~{sample_id}_cleaned.fasta > seqkit_stats.txt
+        seqkit stats -T ~{sample_id}_final.fasta > seqkit_stats.txt
         cat seqkit_stats.txt
         num_contigs=$(tail -n1 seqkit_stats.txt | cut -f4)
         asm_length=$(tail -n1 seqkit_stats.txt | cut -f5)
@@ -600,9 +600,9 @@ task CleanGFA {
     >>>
 
     output {
-        File final_gfa = "~{sample_id}_cleaned.gfa"
-        File final_fasta = "~{sample_id}_cleaned.fasta"
-        File final_log = "~{sample_id}_cleaned.log"
+        File final_gfa = "~{sample_id}_final.gfa"
+        File final_fasta = "~{sample_id}_final.fasta"
+        File final_log = "~{sample_id}_final.log"
         Int final_num_contigs = read_int("contig_count.txt")
         Int final_asm_length = read_int("asm_length.txt")
     }
