@@ -286,6 +286,7 @@ task FinalizeAssembly {
         Float min_identity = 0.75
         Int max_unitigs = 5000
         Float mad = 5.0
+        Int min_assemblies = 4
         #Array[Int]? manual_nodes # list of tree node numbers to manually define clusters.
         ##  usage: ~{sep=',' manual_nodes}
         ##    Could be useful in Bb assembly if I'm going to resolve plasmids after multiassembly before finalizing?
@@ -321,7 +322,7 @@ task FinalizeAssembly {
 
         # cluster em!
         echo "Generating Clusters using autocycler cluster."
-        (autocycler cluster -a autocycler_out --cutoff ~{cutoff} --max_contigs ~{max_contigs}) 2>>autocycler.stderr
+        (autocycler cluster -a autocycler_out --cutoff ~{cutoff} --max_contigs ~{max_contigs} --min_assemblies ~{min_assemblies}) 2>>autocycler.stderr
 
         # trim each good cluster
         for c in autocycler_out/clustering/qc_pass/cluster_*; do

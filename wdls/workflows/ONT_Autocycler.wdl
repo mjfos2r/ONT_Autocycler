@@ -28,6 +28,7 @@ workflow Autocycler {
         min_identity: "float specifying the minimum alignment identity for trimming alignments [Default: 0.75]"
         max_unitigs: "integer specifying the maximum number of unitigs used for overlap alignment, set to 0 to disable trimming. [Default: 5000]"
         mad: "float specifying the allowed variability in cluster length, measured in Median Absolute Deviations. Set to 0 to disable exclusion of length outliers. [Default: 5.0]"
+        min_assemblies: "minimum number of assemblies for a cluster to be composed of, failing QC if below this."
     }
 
     input {
@@ -46,6 +47,7 @@ workflow Autocycler {
         Float min_identity = 0.75
         Int max_unitigs = 5000
         Float mad = 5.0
+        Int min_assemblies
     }
 
     call ATC.Subsample {
@@ -86,6 +88,7 @@ workflow Autocycler {
             min_identity = min_identity,
             max_unitigs = max_unitigs,
             mad = mad,
+            min_assemblies = min_assemblies
     }
     call ATC.CleanAssembly {
         input:
