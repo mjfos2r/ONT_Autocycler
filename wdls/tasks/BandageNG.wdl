@@ -53,8 +53,6 @@ task DrawGFA {
     output {
         File image = "~{assembly_id}_assembly_graph~{ext}"
     }
-
-    #########################
     RuntimeAttr default_attr = object {
         cpu_cores:          2,
         mem_gb:             8,

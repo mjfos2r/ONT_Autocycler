@@ -96,7 +96,6 @@ task Subsample {
         File log = "autocycler.stderr"
     }
 
-    #########################
     RuntimeAttr default_attr = object {
         cpu_cores:          16,
         mem_gb:             64,
@@ -184,8 +183,6 @@ task Assemble {
         File assembler_output = "assemblies.tar.gz"
         File log = "autocycler.stderr"
     }
-
-    #########################
     RuntimeAttr default_attr = object {
         cpu_cores:          16,
         mem_gb:             64,
@@ -241,8 +238,6 @@ task ConsolidateAssemblies {
         File assemblies = "assemblies.tar.gz"
         #Array[File] assemblies_arr = glob("assemblies/*.fasta")
     }
-
-    #########################
     RuntimeAttr default_attr = object {
         cpu_cores:          16,
         mem_gb:             64,
@@ -360,8 +355,6 @@ task FinalizeAssembly {
         Int num_contigs = read_int("contig_count.txt")
         Int asm_length = read_int("asm_length.txt")
     }
-
-    #########################
     RuntimeAttr default_attr = object {
         cpu_cores:          16,
         mem_gb:             64,
@@ -408,8 +401,6 @@ task ConsolidateLogs {
     output {
         File final_log = "autocycler_full.stderr"
     }
-
-    #########################
     RuntimeAttr default_attr = object {
         cpu_cores:          2,
         mem_gb:             8,
@@ -502,8 +493,6 @@ task CleanAssembly {
         Int num_contigs = read_int("contig_count.txt")
         Int asm_length = read_int("asm_length.txt")
     }
-
-    #########################
     RuntimeAttr default_attr = object {
         cpu_cores:          4,
         mem_gb:             16,
@@ -606,8 +595,6 @@ task CleanGFA {
         Int final_num_contigs = read_int("contig_count.txt")
         Int final_asm_length = read_int("asm_length.txt")
     }
-
-    #########################
     RuntimeAttr default_attr = object {
         cpu_cores:          2,
         mem_gb:             8,

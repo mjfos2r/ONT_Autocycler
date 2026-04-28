@@ -42,7 +42,6 @@ task Dnaapler {
     output {
         File assembly_reoriented = "dnaapler_out/~{sample_id}_reoriented.fasta"
     }
-    #########################
     RuntimeAttr default_attr = object {
         cpu_cores:          4,
         mem_gb:             16,
