@@ -313,23 +313,23 @@ task FinalizeAssembly {
         done
         echo "Compressing assemblies into a single graph."
         # Now we compress em into a single graph!
-        (autocycler compress -i assemblies -a autocycler_out --max_contigs ~{max_contigs} --kmer ~{kmer_size} --threads "$NPROCS") 2>>autocycler.stderr
+        (autocycler compress -i assemblies -a autocycler_out --max_contigs ~{max_contigs} --kmer ~{kmer_size} --threads "$NPROCS") 2> >(tee -a autocycler.stderr >&2)
 
         # cluster em!
         echo "Generating Clusters using autocycler cluster."
-        (autocycler cluster -a autocycler_out --cutoff ~{cutoff} --max_contigs ~{max_contigs} --min_assemblies ~{min_assemblies}) 2>>autocycler.stderr
+        (autocycler cluster -a autocycler_out --cutoff ~{cutoff} --max_contigs ~{max_contigs} --min_assemblies ~{min_assemblies}) 2> >(tee -a autocycler.stderr >&2)
 
         # trim each good cluster
         for c in autocycler_out/clustering/qc_pass/cluster_*; do
             echo "Trimming cluster $(basename ${c})"
-            (autocycler trim -c "$c" --min_identity ~{min_identity} --max_unitigs ~{max_unitigs} --mad ~{mad} --threads "$NPROCS") 2>>autocycler.stderr
+            (autocycler trim -c "$c" --min_identity ~{min_identity} --max_unitigs ~{max_unitigs} --mad ~{mad} --threads "$NPROCS") 2> >(tee -a autocycler.stderr >&2)
             echo "Trimming resolving cluster $(basename ${c})"
             (autocycler resolve -c "$c") 2>>autocycler.stderr
         done
 
         # combine everything into a consensus assembly!
         echo "Combining all QC passed clusters into a single consensus."
-        (autocycler combine -a autocycler_out -i autocycler_out/clustering/qc_pass/cluster_*/5_final.gfa) 2>>autocycler.stderr
+        (autocycler combine -a autocycler_out -i autocycler_out/clustering/qc_pass/cluster_*/5_final.gfa) 2> >(tee -a autocycler.stderr >&2)
 
         # lets also count our contigs and dump their names
         echo "getting contig count and final assembly length"
