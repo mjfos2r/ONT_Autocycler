@@ -292,7 +292,7 @@ task FinalizeAssembly {
     Int disk_size = 365 + 2 * ceil(size(assemblies_in, "GB"))
 
     command <<<
-        set -euo pipefail
+        set -uo pipefail
         shopt -s nullglob
 
         NPROCS=$(cat /proc/cpuinfo | awk '/^processor/{print}' | wc -l)
